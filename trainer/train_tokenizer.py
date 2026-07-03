@@ -9,15 +9,31 @@ TOKENIZER_DIR = '../model_learn_tokenizer/'
 VOCAB_SIZE = 6400
 SPECIAL_TOKENS_NUM = 36
 
+#读取数据集，jsonl格式（json lines），每行是一个json对象，包含conversations字段，里面是对话内容，一行就是一个完整的 JSON 对象，多行组成一个数据集。
 def get_texts(data_path):
     with open(data_path, 'r', encoding='utf-8', errors='ignore') as f:
-        for i, line in enumerate(f):
+        for i, line in enumerate(f): #enumerate的作用是在遍历可迭代对象时，同时获取元素的索引和值。它返回一个迭代器，每次迭代返回一个包含两个元素的元组，第一个元素是索引，第二个元素是对应的值。
+            #line 末尾会自带换行符
             if i >= 10000: break # 选10000行测试
-            try:
-                data = json.loads(line)
+            try:  #try ... except ... 的目的就是：某一行坏了不要让整个程序中断，跳过坏行继续处理下一行。
+                data = json.loads(line) #就是从字符串中加载 JSON,把json格式转化为Python对象
                 contents = [item.get('content') for item in data.get('conversations', []) if item.get('content')]
+                """
+                #data数据类型是字典,上述是一个列表推导式,用于从 data 中提取所有对话内容(content)并存储在 contents 列表中。它会遍历 data 中的 conversations 列表,对于每个对话项(item),如果该项包含 content 字段且不为空，就将其添加到 contents 列表中。
+                #字典的 .get(key, default) 方法表示：尝试获取字典中指定 key 的值，如果 key 不存在，则返回默认值 default。这里的 default 是空列表 []，表示如果 conversations 不存在，就返回一个空列表。
+                for item in data.get('conversations', [])遍历对话列表中的每一项。
+                item.get('content')从当前这轮对话里取 content 字段。
+                if item.get('content')这是过滤条件。只有当 item.get('content') 有值时，才把它加入列表。
+                """
                 if contents:
-                    yield "\n".join(contents)
+                    yield "\n".join(contents)  #注意其返回的是字符串，不是列表
+                """
+                join 是字符串方法，用来把一个字符串列表拼接成一个大字符串。/n是换行符, yield "\n".join(contents)意思是：把 contents 列表里的所有对话内容用换行符连接成一个字符串，并通过 yield 产出这个字符串。
+                yield 和 return 有点像，都能从函数里“产出”结果。 但区别是,return:一次性返回一个结果.然后函数结束。yield:每次产出一个结果,函数暂停;下次需要数据时,从暂停处继续运行。
+                包含 yield 的函数叫做生成器函数。
+                所以texts = get_texts(data_path)并不会马上读取完整文件，而是返回一个生成器对象。 后面 tokenizer 训练器会一条一条取:tokenizer.train_from_iterator(texts, trainer=trainer)，节省内存。
+                
+                """
             except json.JSONDecodeError:
                 continue
 
