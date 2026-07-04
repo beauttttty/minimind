@@ -16,11 +16,13 @@ def get_texts(data_path):
             #line 末尾会自带换行符
             if i >= 10000: break # 选10000行测试
             try:  #try ... except ... 的目的就是：某一行坏了不要让整个程序中断，跳过坏行继续处理下一行。
-                data = json.loads(line) #就是从字符串中加载 JSON,把json格式转化为Python对象
+                data = json.loads(line) #就是从字符串中加载 JSON,把json格式转化为Python对象, line:{"conversations":[{"role":"user","content":"什么是 tokenizer？"},{"role":"assistant","content":"tokenizer 是把文本切分成 token 的工具。"}]}
+                #转化为python对象后，data是一个字典，里面有一个键 'conversations'，对应的值是一个列表，列表中每个元素都是一个字典，包含 'role' 和 'content' 两个键。
                 contents = [item.get('content') for item in data.get('conversations', []) if item.get('content')]
                 """
                 #data数据类型是字典,上述是一个列表推导式,用于从 data 中提取所有对话内容(content)并存储在 contents 列表中。它会遍历 data 中的 conversations 列表,对于每个对话项(item),如果该项包含 content 字段且不为空，就将其添加到 contents 列表中。
                 #字典的 .get(key, default) 方法表示：尝试获取字典中指定 key 的值，如果 key 不存在，则返回默认值 default。这里的 default 是空列表 []，表示如果 conversations 不存在，就返回一个空列表。
+                item的数据类型是字典,item.get('content')尝试获取当前对话项的 content 字段的值，如果不存在则返回 None。if item.get('content')是一个条件判断，只有当 content 字段存在且不为空时，才会将其加入 contents 列表。
                 for item in data.get('conversations', [])遍历对话列表中的每一项。
                 item.get('content')从当前这轮对话里取 content 字段。
                 if item.get('content')这是过滤条件。只有当 item.get('content') 有值时，才把它加入列表。
@@ -36,10 +38,21 @@ def get_texts(data_path):
                 """
             except json.JSONDecodeError:
                 continue
-
+#训练tokenizer分词器，分词器的训练过程包括以下几个步骤：
+#1. 初始化一个空的分词器对象。
+#2. 设置预分词器（pre-tokenizer），用于将输入文本拆分为更小的单元（如单词或子词）。
+#3. 定义特殊的token列表，这些token在训练过程中会被保留，并且不会被分词器拆分。
+#4. 创建一个训练器对象，指定词汇表大小、特殊token列表等参数。
+#5. 从数据集中获取文本，并使用训练器对分词器进行训练。
+#6. 设置解码器（decoder），用于将分词后的token序列转换回原始文本。
+#7. 将训练好的分词器保存到指定目录  
 def train_tokenizer(data_path, tokenizer_dir, vocab_size, special_tokens_num=SPECIAL_TOKENS_NUM):
     tokenizer = Tokenizer(models.BPE())
     tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+    #Tokenizer是一个类，用于创建和管理分词器对象。它是Hugging Face Tokenizers库中的核心类，提供了分词、解码、保存和加载等功能。
+    #models是子模块，一个 .py 文件通常就是一个模块，可以import，把一组相关的变量、函数、类放在一起。BPE是一个类， models.BPE() 返回的是一个 BPE mode
+    # 实例，tokenizer是一个对象， tokenizer.pre_tokenizer是 tokenizer 对象的一个属性。pre_tokenizers是一个模块，ByteLevel是一个类，
+    # pre_tokenizers.ByteLevel(add_prefix_space=False)返回一个 ByteLevel pre-tokenizer 实例，并将其赋值给 tokenizer.pre_tokenizer 属性。
     
     special_tokens_list = [
         "<|endoftext|>", "<|im_start|>", "<|im_end|>", 
