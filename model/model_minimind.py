@@ -7,42 +7,45 @@ from transformers.modeling_outputs import MoeCausalLMOutputWithPast
 # 🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏
 #                                     MiniMind Config
 # 🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏
-class MiniMindConfig(PretrainedConfig):
-    model_type = "minimind"
+class MiniMindConfig(PretrainedConfig):   #这个类的作用是定义MiniMind模型的配置参数，包括隐藏层大小、层数、是否使用MoE等。它继承自PretrainedConfig类，允许用户在初始化模型时传入自定义参数，同时提供默认值。
+    #继承 PretrainedConfig 的好处是：MiniMind 的配置可以和 Transformers 生态兼容，例如保存成 config.json、从配置加载模型、配合 AutoModel 等机制使用。
+    model_type = "minimind"#类属性，用于huggingface transformers库中标识模型类型,用于自动识别机制，令框架识别到这是一个MiniMind类型的模型。
     def __init__(self, hidden_size=768, num_hidden_layers=8, use_moe=False, **kwargs):
-        super().__init__(**kwargs)
-        self.hidden_size = hidden_size
-        self.num_hidden_layers = num_hidden_layers
+        # kwargs 是一个字典，允许用户传入额外的配置参数，这些参数会被传递给父类 PretrainedConfig 的构造函数(init)。
+        super().__init__(**kwargs)#调用父类的构造函数，确保继承自 PretrainedConfig 的属性和方法被正确初始化。super()：拿到父类对象。
+        self.hidden_size = hidden_size#隐藏层维度，输出维度。
+        self.num_hidden_layers = num_hidden_layers#transformer层数
         self.use_moe = use_moe
-        self.dropout = kwargs.get("dropout", 0.0)
-        self.vocab_size = kwargs.get("vocab_size", 6400)
-        self.bos_token_id = kwargs.get("bos_token_id", 1)
-        self.eos_token_id = kwargs.get("eos_token_id", 2)
-        self.flash_attn = kwargs.get("flash_attn", True)
-        self.num_attention_heads = kwargs.get("num_attention_heads", 8)
-        self.num_key_value_heads = kwargs.get("num_key_value_heads", 4)
-        self.head_dim = kwargs.get("head_dim", self.hidden_size // self.num_attention_heads)
-        self.hidden_act = kwargs.get("hidden_act", 'silu')
-        self.intermediate_size = kwargs.get("intermediate_size", math.ceil(hidden_size * math.pi / 64) * 64)
-        self.max_position_embeddings = kwargs.get("max_position_embeddings", 32768)
-        self.rms_norm_eps = kwargs.get("rms_norm_eps", 1e-6)
-        self.rope_theta = kwargs.get("rope_theta", 1e6)
-        self.tie_word_embeddings = kwargs.get("tie_word_embeddings", True)
-        self.inference_rope_scaling = kwargs.get("inference_rope_scaling", False)
+        self.dropout = kwargs.get("dropout", 0.0)#丢弃率， 从 kwargs 里读取 dropout，如果没传，就默认 0.0。
+        self.vocab_size = kwargs.get("vocab_size", 6400)#词表大小
+        self.bos_token_id = kwargs.get("bos_token_id", 1)#句子开始的标识符，默认id1
+        self.eos_token_id = kwargs.get("eos_token_id", 2)#句子结束的标识符，默认id2
+        self.flash_attn = kwargs.get("flash_attn", True)#是否启用Flash Attention
+        self.num_attention_heads = kwargs.get("num_attention_heads", 8)#注意力头数
+        self.num_key_value_heads = kwargs.get("num_key_value_heads", 4)#注意力键值头数，GQA， Query head 共享一组 Key/Value head，可以减少 KV cache 和计算开销
+        self.head_dim = kwargs.get("head_dim", self.hidden_size // self.num_attention_heads)#注意力每头的输出维度
+        self.hidden_act = kwargs.get("hidden_act", 'silu')#激活函数类型，默认使用silu
+        self.intermediate_size = kwargs.get("intermediate_size", math.ceil(hidden_size * math.pi / 64) * 64)#中间层维度，通常是隐藏层维度的倍数。
+        #math.ceil是向上取整，让 intermediate_size 大约等于 hidden_size * π，并且向上对齐到 64 的倍数。
+        self.max_position_embeddings = kwargs.get("max_position_embeddings", 32768)#位置编码的最大长度
+        self.rms_norm_eps = kwargs.get("rms_norm_eps", 1e-6)#在做归一化时为防止分母为0，会使方差加一个 epsilon，默认 1e-6
+        self.rope_theta = kwargs.get("rope_theta", 1e6)#基础频率参数，默认 1e6，会影响不同位置的旋转频率，也会影响长上下文能力。
+        self.tie_word_embeddings = kwargs.get("tie_word_embeddings", True)#是否将词嵌入层和输出层lm_head的权重共享，默认True
+        self.inference_rope_scaling = kwargs.get("inference_rope_scaling", False)#是否启用推理时的RoPE缩放，长度外推。
         self.rope_scaling = {
-            "beta_fast": 32,
-            "beta_slow": 1,
-            "factor": 16,
-            "original_max_position_embeddings": 2048,
-            "attention_factor": 1.0,
+            "beta_fast": 32,#控制高频调整范围
+            "beta_slow": 1,#控制低频调整范围
+            "factor": 16,#长度扩展倍数
+            "original_max_position_embeddings": 2048,#原始最大位置编码长度
+            "attention_factor": 1.0,#注意力缩放因子，熵
             "type": "yarn"
         } if self.inference_rope_scaling else None
         ### MoE specific configs (ignored if use_moe = False)
-        self.num_experts = kwargs.get("num_experts", 4)
-        self.num_experts_per_tok = kwargs.get("num_experts_per_tok", 1)
-        self.moe_intermediate_size = kwargs.get("moe_intermediate_size", self.intermediate_size)
-        self.norm_topk_prob = kwargs.get("norm_topk_prob", True)
-        self.router_aux_loss_coef = kwargs.get("router_aux_loss_coef", 5e-4)
+        self.num_experts = kwargs.get("num_experts", 4)#每层的专家数量，MoE层中有多少个专家网络
+        self.num_experts_per_tok = kwargs.get("num_experts_per_tok", 1)#每个token选择的专家数量，默认1，表示每个token只会被路由到一个专家。
+        self.moe_intermediate_size = kwargs.get("moe_intermediate_size", self.intermediate_size)# MoE 专家内部 FFN 的中间层维度。
+        self.norm_topk_prob = kwargs.get("norm_topk_prob", True)#是否对 top-k 概率进行归一化，确保每个 token 的路由概率和为 1。
+        self.router_aux_loss_coef = kwargs.get("router_aux_loss_coef", 5e-4)#MoE router 辅助损失系数，默认 5e-4。这个值越大，均衡约束越强。
 
 # 🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏🌎🌍🌏
 #                                     MiniMind Model
